@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   # Odoo Application Service
   odoo:
-    image: odoo:17.0
+    image: odoo:18.0
     depends_on:
       - haproxy
     ports:
@@ -20,7 +18,7 @@ services:
 
   # PostgreSQL Primary Database
   db_primary:
-    image: postgres:15
+    image: postgres:17.2
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password

@@ -1,0 +1,1 @@
+# odoo_db_readonly_and_standby

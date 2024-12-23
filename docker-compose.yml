@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # Odoo Application Service
+  odoo:
+    image: odoo:17.0
+    depends_on:
+      - haproxy
+    ports:
+      - "8069:8069"
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./addons:/mnt/extra-addons
+    environment:
+      - HOST=haproxy  # Use HAProxy as DB host
+      - DB_PORT=5432
+    secrets:
+      - postgresql_password
+
+  # PostgreSQL Primary Database
+  db_primary:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - db-primary-data:/var/lib/postgresql/data/pgdata
+    secrets:
+      - postgresql_password
+
+  # PostgreSQL Standby Database (Hot Standby)
+  db_standby:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    depends_on:
+      - db_primary
+    volumes:
+      - db-standby-data:/var/lib/postgresql/data/pgdata
+    command: >
+      postgres -c wal_level=replica
+               -c hot_standby=on
+               -c primary_conninfo="host=db_primary port=5432 user=odoo password=$(cat /run/secrets/postgresql_password)"
+    secrets:
+      - postgresql_password
+
+  # PostgreSQL Read-Only Replica
+  db_readonly:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    depends_on:
+      - db_primary
+    volumes:
+      - db-readonly-data:/var/lib/postgresql/data/pgdata
+    command: >
+      postgres -c wal_level=replica
+               -c hot_standby=on
+               -c primary_conninfo="host=db_primary port=5432 user=odoo password=$(cat /run/secrets/postgresql_password)"
+    secrets:
+      - postgresql_password
+
+  # PgBouncer for Connection Pooling
+  pgbouncer:
+    image: edoburu/pgbouncer
+    depends_on:
+      - db_primary
+      - db_standby
+      - db_readonly
+    environment:
+      DATABASES: |
+        primary=host=db_primary port=5432
+        readonly=host=db_readonly port=5432
+        AUTH_USER=odoo
+        AUTH_PASSWORD_FILE=/run/secrets/postgresql_password  # Use the secret for AUTH_PASSWORD
+    ports:
+      - "6432:6432"
+    secrets:
+      - postgresql_password
+
+  # HAProxy for Failover and Routing
+  haproxy:
+    image: haproxy:2.5
+    depends_on:
+      - db_primary
+      - db_standby
+      - db_readonly
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+
+volumes:
+  odoo-web-data:
+  db-primary-data:
+  db-standby-data:
+  db-readonly-data:
+
+secrets:
+  postgresql_password:
+    file: odoo_pg_pass  # Your secret file location

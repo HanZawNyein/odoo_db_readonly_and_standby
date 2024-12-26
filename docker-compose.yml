@@ -1,74 +1,64 @@
-version: '3.8'
+version: '3.7'
 
 services:
   # PostgreSQL Primary Database
   db_primary:
-    image: postgres:17.2
+    image: postgres:13
     environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
-      - POSTGRES_USER=odoo
-      - PGDATA=/var/lib/postgresql/data/pgdata
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo_password
+      POSTGRES_DB: odoo
     volumes:
-      - db-primary-data:/var/lib/postgresql/data/pgdata
-    secrets:
-      - postgresql_password
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - odoo_network
 
-  # PostgreSQL Standby Database (Hot Standby)
+  # PostgreSQL Standby Database (for high availability)
   db_standby:
-    image: postgres:15
+    image: postgres:13
     environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
-      - POSTGRES_USER=odoo
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    depends_on:
-      - db_primary
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo_password
     volumes:
-      - db-standby-data:/var/lib/postgresql/data/pgdata
-    command: >
-      postgres -c wal_level=replica
-               -c hot_standby=on
-               -c primary_conninfo="host=db_primary port=5432 user=odoo password=$(cat /run/secrets/postgresql_password)"
-    secrets:
-      - postgresql_password
+      - db_standby_data:/var/lib/postgresql/data
+    networks:
+      - odoo_network
 
-  # HAProxy for Failover and Routing
+  # HAProxy for Load Balancing (PostgreSQL)
   haproxy:
-    image: haproxy:2.5
-    depends_on:
-      - db_primary
-      - db_standby
-    ports:
-      - "5432:5432"
+    image: haproxy:latest
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    ports:
+      - "5432:5432"  # PostgreSQL port for Odoo
+    networks:
+      - odoo_network
+
+  # Odoo Service
+  web:
+    image: odoo:18.0
     environment:
       - DB_HOST=haproxy
       - DB_PORT=5432
-
-  # Odoo Application Service
-  web:
-    image: odoo:18.0
+      - DB_USER=odoo
+      - DB_PASSWORD=odoo_password
+      - DB_NAME=odoo
     depends_on:
+      - db_primary
+      - db_standby
       - haproxy
+    volumes:
+      - odoo_data:/mnt/odoo
     ports:
       - "8069:8069"
-    volumes:
-      - odoo-web-data:/var/lib/odoo
-      - ./config:/etc/odoo
-      - ./addons:/mnt/extra-addons
-    environment:
-      - DB_HOST=haproxy  # Use HAProxy as DB host
-      - DB_PORT=5432
-    secrets:
-      - postgresql_password
+    networks:
+      - odoo_network
 
 volumes:
-  odoo-web-data:
-  db-primary-data:
-  db-standby-data:
+  db_data:
+  db_standby_data:
+  odoo_data:
 
-secrets:
-  postgresql_password:
-    file: ./odoo_pg_pass  # Your secret file location
+networks:
+  odoo_network:
+    driver: bridge

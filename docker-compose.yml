@@ -3,7 +3,7 @@ version: '3.7'
 services:
   # PostgreSQL Primary Database
   db_primary:
-    image: postgres:13
+    image: postgres:17.2
     environment:
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: odoo_password
@@ -15,7 +15,7 @@ services:
 
   # PostgreSQL Standby Database (for high availability)
   db_standby:
-    image: postgres:13
+    image: postgres:17.2
     environment:
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: odoo_password

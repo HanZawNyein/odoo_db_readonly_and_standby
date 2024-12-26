@@ -1,65 +1,102 @@
-version: '3.7'
+version: '3'
 
 services:
-  # PostgreSQL Primary Database
-  db_primary:
-    image: postgres:17.2
-    environment:
-      POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: odoo_password
-      POSTGRES_DB: odoo
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    networks:
-      - odoo_network
-
-  # PostgreSQL Standby Database (for high availability)
-  db_standby:
-    image: postgres:17.2
-    environment:
-      POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: odoo_password
-    volumes:
-      - db_standby_data:/var/lib/postgresql/data
-    networks:
-      - odoo_network
-
-  # HAProxy for Load Balancing (PostgreSQL)
-  haproxy:
-    image: haproxy:latest
-    volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
-    ports:
-      - "5432:5432"  # PostgreSQL port for Odoo
-    networks:
-      - odoo_network
-
-  # Odoo Service
-  web:
+  odoo1:
     image: odoo:18.0
-#    environment:
-#      - DB_HOST=haproxy
-#      - DB_PORT=5432
-#      - DB_USER=odoo
-#      - DB_PASSWORD=odoo_password
-#      - DB_NAME=odoo
-    depends_on:
-      - db_primary
-      - db_standby
-      - haproxy
-    volumes:
-      - ./config:/etc/odoo
-      - odoo_data:/mnt/odoo
+    container_name: odoo1
+    environment:
+      - HOST=haproxy
+      - USER=odoo
+      - PASSWORD=odoo
     ports:
       - "8069:8069"
-    networks:
-      - odoo_network
+    depends_on:
+      - haproxy
 
-volumes:
-  db_data:
-  db_standby_data:
-  odoo_data:
+  odoo2:
+    image: odoo:18.0
+    container_name: odoo2
+    environment:
+      - HOST=haproxy
+      - USER=odoo
+      - PASSWORD=odoo
+    ports:
+      - "8070:8069"
+    depends_on:
+      - haproxy
+
+  haproxy:
+    image: haproxy:latest
+    container_name: haproxy
+    ports:
+      - "5432:5432" # PostgreSQL port
+      - "9999:9999"  # pgPool port, if needed
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    depends_on:
+      - pgpool
+
+  pgpool:
+    image: pgpool/pgpool:latest
+    container_name: pgpool
+    environment:
+      - PGPOOL_BACKEND_NODES=0=db1:5432,1=db2:5432
+      - PGPOOL_PORT=9999
+    ports:
+      - "9999:9999"  # pgPool port
+    depends_on:
+      - db1
+      - db2
+
+  db1:
+    image: postgres:17.2
+    container_name: db1
+    environment:
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+    volumes:
+      - db1-data:/var/lib/postgresql/data
+    networks:
+      - odoo-network
+
+  db2:
+    image: postgres:17.2
+    container_name: db2
+    environment:
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+    volumes:
+      - db2-data:/var/lib/postgresql/data
+    networks:
+      - odoo-network
+
+  patroni:
+    image: zalando/patroni:latest
+    container_name: patroni
+    environment:
+      - PATRONI_ETCD_HOST=etcd:2379
+      - PATRONI_KUBERNETES_LABELS={"app":"patroni"}
+    depends_on:
+      - etcd
+      - db1
+      - db2
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.4.13
+    container_name: etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    volumes:
+      - etcd-data:/etcd-data
 
 networks:
-  odoo_network:
+  odoo-network:
     driver: bridge
+
+volumes:
+  db1-data:
+  db2-data:
+  etcd-data:

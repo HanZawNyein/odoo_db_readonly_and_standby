@@ -1,8 +1,8 @@
 import psycopg2
 
 # Database connection parameters
-DB_HOST = "haproxy"  # Assuming HAProxy is routing to the read-only DB
-DB_PORT = 5432       # PostgreSQL port
+DB_HOST = "54.169.254.130"  # Assuming HAProxy is routing to the read-only DB
+DB_PORT = 5433       # PostgreSQL port
 DB_NAME = "postgres" # Database name
 DB_USER = "odoo"     # Username
 DB_PASSWORD = "odoo"  # Password

@@ -73,7 +73,7 @@ services:
       - db_primary
       - db_standby
     ports:
-      - "5435:5432"
+      - "5432:5432"
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
 

@@ -37,17 +37,18 @@ services:
   # Odoo Service
   web:
     image: odoo:18.0
-    environment:
-      - DB_HOST=haproxy
-      - DB_PORT=5432
-      - DB_USER=odoo
-      - DB_PASSWORD=odoo_password
-      - DB_NAME=odoo
+#    environment:
+#      - DB_HOST=haproxy
+#      - DB_PORT=5432
+#      - DB_USER=odoo
+#      - DB_PASSWORD=odoo_password
+#      - DB_NAME=odoo
     depends_on:
       - db_primary
       - db_standby
       - haproxy
     volumes:
+      - ./config:/etc/odoo
       - odoo_data:/mnt/odoo
     ports:
       - "8069:8069"

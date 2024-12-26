@@ -18,7 +18,7 @@ services:
     image: haproxy:latest
     ports:
       - "5432:5432" # PostgreSQL port
-      - "9999:9999"  # pgPool port, if needed
+      - "10000:9999"  # Change the pgPool port to avoid conflict
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
     depends_on:
@@ -30,7 +30,7 @@ services:
       - PGPOOL_BACKEND_NODES=0=db1:5432,1=db2:5432
       - PGPOOL_PORT=9999
     ports:
-      - "9999:9999"  # pgPool port
+      - "9999:9999"  # pgPool port inside the container
     depends_on:
       - db1
       - db2

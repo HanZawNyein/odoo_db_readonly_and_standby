@@ -11,7 +11,7 @@ services:
       - ./config:/etc/odoo
       - ./addons:/mnt/extra-addons
     environment:
-      - HOST=haproxy  # Use HAProxy as DB host
+      - DB_HOST=haproxy  # Use HAProxy as DB host
       - DB_PORT=5432
     secrets:
       - postgresql_password
@@ -48,22 +48,23 @@ services:
     secrets:
       - postgresql_password
 
-  # PgBouncer for Connection Pooling
   pgbouncer:
     image: edoburu/pgbouncer
     depends_on:
       - db_primary
       - db_standby
     environment:
-      DATABASES: |
-        primary=host=db_primary port=5432
-        standby=host=db_standby port=5432
-        AUTH_USER=odoo
-        AUTH_PASSWORD_FILE=/run/secrets/postgresql_password  # Use the secret for AUTH_PASSWORD
+      - DB_HOST=db_primary  # Set the DB host for PgBouncer
+      - DATABASES=primary=host=db_primary port=5432 standby=host=db_standby port=5432
+      - AUTH_USER=odoo
+      - AUTH_PASSWORD_FILE=/run/secrets/postgresql_password  # Use the secret for AUTH_PASSWORD
     ports:
       - "6432:6432"
     secrets:
       - postgresql_password
+
+
+
 
   # HAProxy for Failover and Routing
   haproxy:
@@ -72,7 +73,7 @@ services:
       - db_primary
       - db_standby
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
 

@@ -5,7 +5,6 @@ services:
     image: odoo:18.0
     deploy:
       replicas: 2
-    container_name: odoo1
     environment:
       - HOST=haproxy
       - USER=odoo
@@ -17,7 +16,6 @@ services:
 
   haproxy:
     image: haproxy:latest
-    container_name: haproxy
     ports:
       - "5432:5432" # PostgreSQL port
       - "9999:9999"  # pgPool port, if needed
@@ -28,7 +26,6 @@ services:
 
   pgpool:
     image: pgpool/pgpool:latest
-    container_name: pgpool
     environment:
       - PGPOOL_BACKEND_NODES=0=db1:5432,1=db2:5432
       - PGPOOL_PORT=9999
@@ -40,7 +37,6 @@ services:
 
   db1:
     image: postgres:17.2
-    container_name: db1
     environment:
       - POSTGRES_USER=odoo
       - POSTGRES_PASSWORD=odoo
@@ -51,7 +47,6 @@ services:
 
   db2:
     image: postgres:17.2
-    container_name: db2
     environment:
       - POSTGRES_USER=odoo
       - POSTGRES_PASSWORD=odoo

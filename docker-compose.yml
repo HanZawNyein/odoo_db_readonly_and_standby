@@ -1,6 +1,6 @@
 services:
   # Odoo Application Service
-  odoo:
+  web:
     image: odoo:18.0
     depends_on:
       - haproxy

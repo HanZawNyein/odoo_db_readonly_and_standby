@@ -48,36 +48,16 @@ services:
     secrets:
       - postgresql_password
 
-  # PostgreSQL Read-Only Replica
-  db_readonly:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
-      - POSTGRES_USER=odoo
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    depends_on:
-      - db_primary
-    volumes:
-      - db-readonly-data:/var/lib/postgresql/data/pgdata
-    command: >
-      postgres -c wal_level=replica
-               -c hot_standby=on
-               -c primary_conninfo="host=db_primary port=5432 user=odoo password=$(cat /run/secrets/postgresql_password)"
-    secrets:
-      - postgresql_password
-
   # PgBouncer for Connection Pooling
   pgbouncer:
     image: edoburu/pgbouncer
     depends_on:
       - db_primary
       - db_standby
-      - db_readonly
     environment:
       DATABASES: |
         primary=host=db_primary port=5432
-        readonly=host=db_readonly port=5432
+        standby=host=db_standby port=5432
         AUTH_USER=odoo
         AUTH_PASSWORD_FILE=/run/secrets/postgresql_password  # Use the secret for AUTH_PASSWORD
     ports:
@@ -91,7 +71,6 @@ services:
     depends_on:
       - db_primary
       - db_standby
-      - db_readonly
     ports:
       - "5432:5432"
     volumes:
@@ -101,7 +80,6 @@ volumes:
   odoo-web-data:
   db-primary-data:
   db-standby-data:
-  db-readonly-data:
 
 secrets:
   postgresql_password:

@@ -17,6 +17,7 @@ services:
 
   haproxy:
     image: haproxy:latest
+    container_name: haproxy
     ports:
       - "5432:5432" # PostgreSQL port
       - "9999:9999"  # pgPool port, if needed
@@ -39,6 +40,7 @@ services:
 
   db1:
     image: postgres:17.2
+    container_name: db1
     environment:
       - POSTGRES_USER=odoo
       - POSTGRES_PASSWORD=odoo
@@ -49,6 +51,7 @@ services:
 
   db2:
     image: postgres:17.2
+    container_name: db2
     environment:
       - POSTGRES_USER=odoo
       - POSTGRES_PASSWORD=odoo
@@ -57,16 +60,6 @@ services:
     networks:
       - odoo-network
 
-  patroni:
-    image: patroni/patroni:latest
-    environment:
-      - PATRONI_ETCD_HOST=etcd:2379
-      - PATRONI_KUBERNETES_LABELS={"app":"patroni"}
-    depends_on:
-      - etcd
-      - db1
-      - db2
-
 networks:
   odoo-network:
     driver: bridge
@@ -74,4 +67,3 @@ networks:
 volumes:
   db1-data:
   db2-data:
-  etcd-data:

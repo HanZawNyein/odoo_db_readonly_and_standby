@@ -1,21 +1,6 @@
-services:
-  # Odoo Application Service
-  web:
-    image: odoo:18.0
-    depends_on:
-      - haproxy
-    ports:
-      - "8069:8069"
-    volumes:
-      - odoo-web-data:/var/lib/odoo
-      - ./config:/etc/odoo
-      - ./addons:/mnt/extra-addons
-    environment:
-      - DB_HOST=haproxy  # Use HAProxy as DB host
-      - DB_PORT=5432
-    secrets:
-      - postgresql_password
+version: '3.8'
 
+services:
   # PostgreSQL Primary Database
   db_primary:
     image: postgres:17.2
@@ -48,24 +33,6 @@ services:
     secrets:
       - postgresql_password
 
-  pgbouncer:
-    image: edoburu/pgbouncer
-    depends_on:
-      - db_primary
-      - db_standby
-    environment:
-      - DB_HOST=db_primary  # Set the DB host for PgBouncer
-      - DATABASES=primary=host=db_primary port=5432 standby=host=db_standby port=5432
-      - AUTH_USER=odoo
-      - AUTH_PASSWORD_FILE=/run/secrets/postgresql_password  # Use the secret for AUTH_PASSWORD
-    ports:
-      - "6432:6432"
-    secrets:
-      - postgresql_password
-
-
-
-
   # HAProxy for Failover and Routing
   haproxy:
     image: haproxy:2.5
@@ -76,15 +43,26 @@ services:
       - "5432:5432"
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    environment:
+      - DB_HOST=haproxy
+      - DB_PORT=5432
 
-  nginx:
-    image: nginx:latest
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  # Odoo Application Service
+  web:
+    image: odoo:18.0
     depends_on:
-      - web
+      - haproxy
+    ports:
+      - "8069:8069"
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./addons:/mnt/extra-addons
+    environment:
+      - DB_HOST=haproxy  # Use HAProxy as DB host
+      - DB_PORT=5432
+    secrets:
+      - postgresql_password
 
 volumes:
   odoo-web-data:
@@ -93,4 +71,4 @@ volumes:
 
 secrets:
   postgresql_password:
-    file: odoo_pg_pass  # Your secret file location
+    file: ./odoo_pg_pass  # Your secret file location
